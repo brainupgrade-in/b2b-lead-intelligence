@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>Crunchbase News</title>
+    <link>https://news.crunchbase.com</link>
+    <description>Startup funding news</description>
+    <item>
+      <title><![CDATA[Acme Robotics Raises $20M Series B Led By Sequoia]]></title>
+      <link>https://news.crunchbase.com/venture/acme-robotics-series-b/</link>
+      <pubDate>Mon, 28 Apr 2026 10:00:00 +0000</pubDate>
+      <description><![CDATA[<p>Acme Robotics, a warehouse-automation startup, has raised $20M in Series B funding led by Sequoia. <a href="https://acmerobotics.example/">Visit Acme Robotics</a>. Read more on <a href="https://techcrunch.com/2026/04/28/acme/">TechCrunch</a>.</p>]]></description>
+      <content:encoded><![CDATA[<p>Acme Robotics raised $20M Series B. <a href="https://acmerobotics.example/">homepage</a>.</p>]]></content:encoded>
+    </item>
+    <item>
+      <title><![CDATA[Beta Health Lands $5M Seed To Automate Clinic Intake]]></title>
+      <link>https://news.crunchbase.com/health/beta-health-seed/</link>
+      <pubDate>Sun, 27 Apr 2026 09:00:00 +0000</pubDate>
+      <description><![CDATA[<p>Beta Health raised $5M seed. <a href="https://betahealth.example">betahealth.example</a></p>]]></description>
+      <content:encoded><![CDATA[<a href="https://betahealth.example">visit</a>]]></content:encoded>
+    </item>
+    <item>
+      <title><![CDATA[lowercase-name-startup raises money]]></title>
+      <link>https://news.crunchbase.com/x/y/</link>
+      <pubDate>Sat, 26 Apr 2026 09:00:00 +0000</pubDate>
+      <description><![CDATA[<p>This title doesn't match the capitalised-prefix heuristic.</p>]]></description>
+      <content:encoded><![CDATA[<a href="https://lowerco.example">visit</a>]]></content:encoded>
+    </item>
+  </channel>
+</rss>

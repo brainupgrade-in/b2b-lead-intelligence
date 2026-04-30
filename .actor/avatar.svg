@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="400" height="400">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1E3A5F"/>
+      <stop offset="100%" style="stop-color:#0F2744"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#8B5CF6"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="400" height="400" fill="url(#bgGrad)"/>
+
+  <!-- Decorative circuit lines -->
+  <g stroke="#3B82F6" stroke-width="1" opacity="0.3">
+    <path d="M 0 100 H 80 V 150 H 120" fill="none"/>
+    <path d="M 400 80 H 320 V 130 H 280" fill="none"/>
+    <path d="M 50 400 V 320 H 100 V 280" fill="none"/>
+    <path d="M 350 400 V 340 H 300 V 300" fill="none"/>
+    <circle cx="80" cy="100" r="4" fill="#3B82F6"/>
+    <circle cx="120" cy="150" r="4" fill="#3B82F6"/>
+    <circle cx="320" cy="80" r="4" fill="#3B82F6"/>
+    <circle cx="280" cy="130" r="4" fill="#3B82F6"/>
+  </g>
+
+  <!-- Main "G" letter stylized -->
+  <g transform="translate(200, 200)">
+    <!-- Outer ring -->
+    <circle cx="0" cy="0" r="120" fill="none" stroke="url(#accentGrad)" stroke-width="24"/>
+
+    <!-- G shape cut -->
+    <path d="M 60 -20 H 120 A 120 120 0 1 0 60 100" fill="url(#bgGrad)" stroke="none"/>
+
+    <!-- Inner accent -->
+    <circle cx="0" cy="0" r="70" fill="none" stroke="#3B82F6" stroke-width="3" opacity="0.5"/>
+
+    <!-- Horizontal bar of G -->
+    <rect x="-10" y="-12" width="85" height="24" rx="12" fill="url(#accentGrad)"/>
+
+    <!-- Data dots representing enrichment -->
+    <circle cx="50" cy="-60" r="8" fill="#10B981"/>
+    <circle cx="75" cy="-35" r="6" fill="#10B981" opacity="0.8"/>
+    <circle cx="85" cy="-5" r="5" fill="#10B981" opacity="0.6"/>
+  </g>
+
+  <!-- "GHEWARE" text -->
+  <text x="200" y="360" font-family="Arial, sans-serif" font-size="32" font-weight="bold" fill="white" text-anchor="middle" letter-spacing="8">GHEWARE</text>
+
+  <!-- Subtle tagline -->
+  <text x="200" y="385" font-family="Arial, sans-serif" font-size="12" fill="#94A3B8" text-anchor="middle" letter-spacing="2">DATA SOLUTIONS</text>
+</svg>

@@ -1,0 +1,25 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "Lead Enrichment Results",
+  "description": "Enriched company data with contact info, tech stack, social profiles, and business signals.",
+  "properties": {
+    "enrichedLeads": {
+      "type": "string",
+      "title": "Enriched Leads",
+      "description": "Complete company intelligence data including emails, phones, tech stack (50+ technologies), social profiles, and business signals.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?format=json"
+    },
+    "csvExport": {
+      "type": "string",
+      "title": "CSV Export",
+      "description": "Download results as CSV for spreadsheet import.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?format=csv"
+    },
+    "excelExport": {
+      "type": "string",
+      "title": "Excel Export",
+      "description": "Download results as Excel file.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items?format=xlsx"
+    }
+  }
+}

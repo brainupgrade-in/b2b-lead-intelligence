@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#0F172A"/>
+      <stop offset="50%" style="stop-color:#1E1B4B"/>
+      <stop offset="100%" style="stop-color:#0F172A"/>
+    </linearGradient>
+    <linearGradient id="glowGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06B6D4"/>
+      <stop offset="50%" style="stop-color:#8B5CF6"/>
+      <stop offset="100%" style="stop-color:#EC4899"/>
+    </linearGradient>
+    <linearGradient id="coreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#22D3EE"/>
+      <stop offset="100%" style="stop-color:#A78BFA"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#F59E0B"/>
+      <stop offset="100%" style="stop-color:#FBBF24"/>
+    </linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <filter id="softGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="256" height="256" rx="40" fill="url(#bgGrad)"/>
+
+  <!-- Outer glow ring -->
+  <circle cx="128" cy="108" r="70" fill="none" stroke="url(#glowGrad)" stroke-width="1.5" opacity="0.4" filter="url(#softGlow)"/>
+
+  <!-- Neural network nodes - outer ring -->
+  <g filter="url(#glow)" opacity="0.9">
+    <circle cx="128" cy="38" r="6" fill="#06B6D4"/>
+    <circle cx="183" cy="70" r="5" fill="#8B5CF6"/>
+    <circle cx="193" cy="118" r="4" fill="#EC4899"/>
+    <circle cx="173" cy="160" r="5" fill="#F472B6"/>
+    <circle cx="128" cy="178" r="6" fill="#A78BFA"/>
+    <circle cx="83" cy="160" r="5" fill="#8B5CF6"/>
+    <circle cx="63" cy="118" r="4" fill="#06B6D4"/>
+    <circle cx="73" cy="70" r="5" fill="#22D3EE"/>
+  </g>
+
+  <!-- Neural connections -->
+  <g stroke="url(#glowGrad)" stroke-width="1" opacity="0.5" filter="url(#glow)">
+    <line x1="128" y1="38" x2="128" y2="75"/>
+    <line x1="183" y1="70" x2="155" y2="88"/>
+    <line x1="193" y1="118" x2="160" y2="108"/>
+    <line x1="173" y1="160" x2="150" y2="135"/>
+    <line x1="128" y1="178" x2="128" y2="140"/>
+    <line x1="83" y1="160" x2="105" y2="135"/>
+    <line x1="63" y1="118" x2="95" y2="108"/>
+    <line x1="73" y1="70" x2="100" y2="88"/>
+  </g>
+
+  <!-- AI Brain core - hexagonal shape -->
+  <polygon points="128,62 162,85 162,130 128,153 94,130 94,85" fill="none" stroke="url(#coreGrad)" stroke-width="2.5" filter="url(#glow)"/>
+
+  <!-- Inner hexagon -->
+  <polygon points="128,75 150,92 150,123 128,140 106,123 106,92" fill="url(#bgGrad)" stroke="url(#coreGrad)" stroke-width="1.5" opacity="0.8"/>
+
+  <!-- Central AI eye/core -->
+  <circle cx="128" cy="108" r="18" fill="url(#bgGrad)" stroke="url(#coreGrad)" stroke-width="2"/>
+  <circle cx="128" cy="108" r="10" fill="url(#coreGrad)" filter="url(#glow)"/>
+  <circle cx="128" cy="108" r="4" fill="white"/>
+
+  <!-- Scanning lines -->
+  <g stroke="#22D3EE" stroke-width="1" opacity="0.6">
+    <line x1="108" y1="108" x2="88" y2="108"/>
+    <line x1="148" y1="108" x2="168" y2="108"/>
+  </g>
+
+  <!-- Data flow particles -->
+  <g fill="#22D3EE" filter="url(#glow)">
+    <circle cx="95" cy="108" r="2"/>
+    <circle cx="161" cy="108" r="2"/>
+    <circle cx="128" cy="70" r="2"/>
+    <circle cx="128" cy="146" r="2"/>
+  </g>
+
+  <!-- Person silhouette (lead) integrated with AI -->
+  <g transform="translate(128, 108)" filter="url(#glow)">
+    <circle cx="0" cy="-3" r="5" fill="white" opacity="0.9"/>
+    <path d="M -6 8 Q -6 2 0 2 Q 6 2 6 8" fill="white" opacity="0.9"/>
+  </g>
+
+  <!-- Bottom tagline area -->
+  <rect x="28" y="200" width="200" height="36" rx="18" fill="url(#bgGrad)" stroke="url(#coreGrad)" stroke-width="1" opacity="0.9"/>
+  <text x="128" y="215" font-family="Arial, sans-serif" font-size="10" font-weight="bold" fill="url(#goldGrad)" text-anchor="middle" letter-spacing="0.5">URLs → DEALS</text>
+  <text x="128" y="228" font-family="Arial, sans-serif" font-size="8" fill="#94A3B8" text-anchor="middle" letter-spacing="0.5">AI-Powered Lead Intelligence</text>
+</svg>

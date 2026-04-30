@@ -1,0 +1,391 @@
+{
+  "actorSpecification": 1,
+  "fields": {
+    "type": "object",
+    "properties": {
+      "inputUrl": {
+        "type": "string",
+        "description": "The original URL provided as input"
+      },
+      "companyUrl": {
+        "type": "string",
+        "description": "Normalized company website URL"
+      },
+      "companyName": {
+        "type": ["string", "null"],
+        "description": "Extracted company name from website metadata"
+      },
+      "description": {
+        "type": ["string", "null"],
+        "description": "Company description from meta tags"
+      },
+      "contact": {
+        "type": "object",
+        "description": "Contact information",
+        "properties": {
+          "emails": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Business email addresses"
+          },
+          "phones": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Phone numbers"
+          },
+          "contactFormUrl": {
+            "type": ["string", "null"],
+            "description": "Contact form URL"
+          }
+        }
+      },
+      "socialProfiles": {
+        "type": "object",
+        "description": "Social media profile URLs",
+        "properties": {
+          "linkedin": { "type": ["string", "null"] },
+          "twitter": { "type": ["string", "null"] },
+          "facebook": { "type": ["string", "null"] },
+          "youtube": { "type": ["string", "null"] },
+          "github": { "type": ["string", "null"] },
+          "instagram": { "type": ["string", "null"] },
+          "crunchbase": { "type": ["string", "null"] }
+        }
+      },
+      "techStack": {
+        "type": "object",
+        "description": "Technologies detected on the website",
+        "properties": {
+          "cms": { "type": ["string", "null"], "description": "CMS platform" },
+          "analytics": { "type": "array", "items": { "type": "string" } },
+          "chat": { "type": ["string", "null"], "description": "Chat widget" },
+          "payment": { "type": "array", "items": { "type": "string" } },
+          "hosting": { "type": ["string", "null"], "description": "Hosting provider" },
+          "frameworks": { "type": "array", "items": { "type": "string" } },
+          "other": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "businessSignals": {
+        "type": "object",
+        "description": "Business intelligence signals",
+        "properties": {
+          "hasCareerPage": { "type": "boolean" },
+          "hasBlog": { "type": "boolean" },
+          "hasPricingPage": { "type": "boolean" },
+          "hasContactPage": { "type": "boolean" },
+          "hasAboutPage": { "type": "boolean" },
+          "hasCustomerLogos": { "type": "boolean" },
+          "estimatedSize": { "type": ["string", "null"], "description": "Estimated company size" }
+        }
+      },
+      "keyPeople": {
+        "type": "array",
+        "description": "Decision-makers extracted from team / leadership / about pages",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "title": { "type": "string" },
+            "category": { "type": "string", "description": "founder | executive | sales | marketing | tech | product | finance | people | other" },
+            "linkedinUrl": { "type": ["string", "null"] },
+            "profileImageUrl": { "type": ["string", "null"] },
+            "sourceUrl": { "type": "string" }
+          }
+        }
+      },
+      "intentSignals": {
+        "type": "object",
+        "description": "Buying-intent / trigger events for BD outreach timing",
+        "properties": {
+          "recentFundingMention": {
+            "type": ["object", "null"],
+            "properties": {
+              "text": { "type": "string" },
+              "amount": { "type": ["string", "null"] },
+              "round": { "type": ["string", "null"] },
+              "sourceUrl": { "type": "string" }
+            }
+          },
+          "hiringSurge": {
+            "type": "object",
+            "properties": {
+              "openRoles": { "type": "integer" },
+              "departments": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "leadershipChange": {
+            "type": ["object", "null"],
+            "properties": {
+              "name": { "type": "string" },
+              "newRole": { "type": "string" },
+              "context": { "type": "string" },
+              "sourceUrl": { "type": "string" }
+            }
+          },
+          "productLaunch": {
+            "type": ["object", "null"],
+            "properties": {
+              "title": { "type": "string" },
+              "sourceUrl": { "type": "string" }
+            }
+          },
+          "recentPressItems": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Most recent press / blog headlines surfaced from the site"
+          }
+        }
+      },
+      "fitScore": {
+        "type": ["object", "null"],
+        "description": "0-100 ICP fit score with reasons and disqualifiers (null when no ICP supplied)",
+        "properties": {
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "reasons": { "type": "array", "items": { "type": "string" } },
+          "disqualifiers": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "outreachHooks": {
+        "type": "array",
+        "description": "LLM-generated personalisation openers grounded in the extracted signals (empty unless generateOutreachHooks=true)",
+        "items": { "type": "string" }
+      },
+      "discovery": {
+        "type": ["object", "null"],
+        "description": "How this lead was discovered (populated only when the lead came via the Sourcing block; null for direct-input URLs)",
+        "properties": {
+          "sources": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Source identifiers — e.g. 'yc:W26', 'hn-hiring:April 2026', 'cb-news'"
+          },
+          "signals": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": { "type": "string", "description": "funding | hiring | launch | leadership | directory" },
+                "text": { "type": "string" },
+                "sourceUrl": { "type": "string" },
+                "seenAt": { "type": "string" }
+              }
+            }
+          },
+          "firstSeenAt": { "type": "string" },
+          "relevanceScore": { "type": "integer", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "metadata": {
+        "type": "object",
+        "description": "Page metadata",
+        "properties": {
+          "title": { "type": ["string", "null"] },
+          "metaDescription": { "type": ["string", "null"] },
+          "ogImage": { "type": ["string", "null"] },
+          "favicon": { "type": ["string", "null"] },
+          "language": { "type": ["string", "null"] }
+        }
+      },
+      "crawlStats": {
+        "type": "object",
+        "description": "Crawl statistics",
+        "properties": {
+          "pagesCrawled": { "type": "integer" },
+          "crawlDurationMs": { "type": "integer" },
+          "timestamp": { "type": "string" },
+          "error": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+  "views": {
+    "overview": {
+      "title": "Lead Data Overview",
+      "transformation": {
+        "fields": [
+          "companyName",
+          "companyUrl",
+          "contact.emails",
+          "contact.phones",
+          "socialProfiles.linkedin",
+          "techStack.cms",
+          "businessSignals.estimatedSize"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "companyName": {
+            "label": "Company",
+            "format": "text"
+          },
+          "companyUrl": {
+            "label": "Website",
+            "format": "link"
+          },
+          "contact.emails": {
+            "label": "Emails",
+            "format": "array"
+          },
+          "contact.phones": {
+            "label": "Phones",
+            "format": "array"
+          },
+          "socialProfiles.linkedin": {
+            "label": "LinkedIn",
+            "format": "link"
+          },
+          "techStack.cms": {
+            "label": "CMS",
+            "format": "text"
+          },
+          "businessSignals.estimatedSize": {
+            "label": "Company Size",
+            "format": "text"
+          }
+        }
+      }
+    },
+    "contacts": {
+      "title": "Contact Information",
+      "transformation": {
+        "fields": [
+          "companyName",
+          "contact.emails",
+          "contact.phones",
+          "contact.contactFormUrl",
+          "socialProfiles.linkedin",
+          "socialProfiles.twitter"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "companyName": {
+            "label": "Company",
+            "format": "text"
+          },
+          "contact.emails": {
+            "label": "Emails",
+            "format": "array"
+          },
+          "contact.phones": {
+            "label": "Phones",
+            "format": "array"
+          },
+          "contact.contactFormUrl": {
+            "label": "Contact Form",
+            "format": "link"
+          },
+          "socialProfiles.linkedin": {
+            "label": "LinkedIn",
+            "format": "link"
+          },
+          "socialProfiles.twitter": {
+            "label": "Twitter",
+            "format": "link"
+          }
+        }
+      }
+    },
+    "sourcedLeads": {
+      "title": "Sourced Leads",
+      "transformation": {
+        "fields": [
+          "companyName",
+          "companyUrl",
+          "discovery.relevanceScore",
+          "discovery.sources",
+          "discovery.signals",
+          "discovery.firstSeenAt",
+          "fitScore.score"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "companyName": { "label": "Company", "format": "text" },
+          "companyUrl": { "label": "Website", "format": "link" },
+          "discovery.relevanceScore": { "label": "Relevance", "format": "number" },
+          "discovery.sources": { "label": "Sources", "format": "array" },
+          "discovery.signals": { "label": "Signals", "format": "array" },
+          "discovery.firstSeenAt": { "label": "First Seen", "format": "date" },
+          "fitScore.score": { "label": "ICP Fit", "format": "number" }
+        }
+      }
+    },
+    "bdIntel": {
+      "title": "BD Intelligence",
+      "transformation": {
+        "fields": [
+          "companyName",
+          "fitScore.score",
+          "keyPeople",
+          "intentSignals.recentFundingMention.text",
+          "intentSignals.hiringSurge.openRoles",
+          "intentSignals.leadershipChange.name",
+          "outreachHooks"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "companyName": { "label": "Company", "format": "text" },
+          "fitScore.score": { "label": "Fit Score", "format": "number" },
+          "keyPeople": { "label": "Decision Makers", "format": "array" },
+          "intentSignals.recentFundingMention.text": { "label": "Funding Signal", "format": "text" },
+          "intentSignals.hiringSurge.openRoles": { "label": "Open Roles", "format": "number" },
+          "intentSignals.leadershipChange.name": { "label": "Leadership Change", "format": "text" },
+          "outreachHooks": { "label": "Outreach Hooks", "format": "array" }
+        }
+      }
+    },
+    "techStack": {
+      "title": "Technology Stack",
+      "transformation": {
+        "fields": [
+          "companyName",
+          "techStack.cms",
+          "techStack.analytics",
+          "techStack.chat",
+          "techStack.payment",
+          "techStack.frameworks",
+          "techStack.hosting"
+        ]
+      },
+      "display": {
+        "component": "table",
+        "properties": {
+          "companyName": {
+            "label": "Company",
+            "format": "text"
+          },
+          "techStack.cms": {
+            "label": "CMS",
+            "format": "text"
+          },
+          "techStack.analytics": {
+            "label": "Analytics",
+            "format": "array"
+          },
+          "techStack.chat": {
+            "label": "Chat Widget",
+            "format": "text"
+          },
+          "techStack.payment": {
+            "label": "Payment",
+            "format": "array"
+          },
+          "techStack.frameworks": {
+            "label": "Frameworks",
+            "format": "array"
+          },
+          "techStack.hosting": {
+            "label": "Hosting",
+            "format": "text"
+          }
+        }
+      }
+    }
+  }
+}

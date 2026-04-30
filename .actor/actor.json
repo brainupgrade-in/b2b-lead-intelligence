@@ -1,0 +1,34 @@
+{
+  "actorSpecification": 1,
+  "name": "b2b-lead-intelligence",
+  "title": "B2B Lead Intelligence",
+  "description": "End-to-end B2B lead intelligence: source matching companies from public directories (YC, HN hiring, Crunchbase News), enrich each with contacts / tech stack / decision-makers / buying-intent signals, and rank by ICP fit — all in one run.",
+  "version": "1.0",
+  "buildTag": "latest",
+  "input": "./input_schema.json",
+  "output": "./output_schema.json",
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "dockerfile": "./Dockerfile",
+  "readme": "../README.md",
+  "usesStandbyMode": false,
+  "minMemoryMbytes": 1024,
+  "maxMemoryMbytes": 4096,
+  "limitedPermissions": {
+    "network": {
+      "allow": ["*"]
+    },
+    "filesystem": {
+      "allow": ["./storage"]
+    }
+  },
+  "categories": [
+    "Lead generation",
+    "Business",
+    "Marketing",
+    "SEO tools"
+  ],
+  "seoTitle": "B2B Lead Intelligence — ICP-Driven Sourcing, Enrichment & Scoring",
+  "seoDescription": "Describe your ICP and discover matching B2B leads from public sources (YC, HN hiring, Crunchbase News), enriched with contacts, tech stack, decision-makers, and buying-intent signals — then ranked by 0-100 fit score. Login-free, no LinkedIn / Apollo scraping."
+}

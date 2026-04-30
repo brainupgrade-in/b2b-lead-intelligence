@@ -1,0 +1,7 @@
+{
+  "name": "lead-enrichment-tool",
+  "version": "1.0.0",
+  "buildTag": "latest",
+  "env": null,
+  "template": "ts-crawlee-playwright-chrome"
+}

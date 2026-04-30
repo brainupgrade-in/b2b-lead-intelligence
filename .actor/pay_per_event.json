@@ -1,0 +1,13 @@
+{
+  "actorSpecification": 1,
+  "pricingModel": "PAY_PER_EVENT",
+  "eventDescriptors": [
+    {
+      "eventName": "lead-enrichment",
+      "eventDescription": "Charged for each URL enriched with company intelligence data",
+      "eventPriceUsd": 0.0025,
+      "eventTitle": "URL Enriched"
+    }
+  ],
+  "computePriceUsdPer1000Compute": null
+}

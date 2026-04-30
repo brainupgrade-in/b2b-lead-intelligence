@@ -1,0 +1,129 @@
+{
+  "title": "B2B Lead Intelligence Input",
+  "description": "Describe your Ideal Customer Profile (ICP) and the sources to scan; the actor finds matching companies, enriches them with contacts / tech stack / decision-makers / intent signals, and ranks by fit. Direct URLs are also accepted as a fallback.",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "idealCustomerProfile": {
+      "title": "Ideal Customer Profile (ICP)",
+      "type": "object",
+      "description": "Describe your target customer. Drives both sourcing relevance (which discovered companies surface to the top) and the per-lead 0-100 fit score with reasons / disqualifiers. Leave empty only if you are running URL-only enrichment without scoring.",
+      "editor": "json",
+      "prefill": {
+        "industries": ["SaaS", "B2B"],
+        "sizeMin": 11,
+        "sizeMax": 200,
+        "preferredTech": ["HubSpot", "Stripe"],
+        "keywords": ["sales", "marketing", "automation"]
+      },
+      "sectionCaption": "1. Define Your ICP",
+      "sectionDescription": "The ICP is the spine of this actor — it shapes which leads get sourced, how they're scored, and what the outreach hooks emphasise."
+    },
+    "sourcing": {
+      "title": "Lead Sourcing",
+      "type": "object",
+      "description": "Pick the public sources to scan. The actor discovers companies matching your ICP, dedupes across sources, ranks by relevance (signal-type weighting + multi-source overlap + ICP keyword/industry hits), then enriches the top N in the same run.",
+      "editor": "json",
+      "prefill": {
+        "sources": ["yc", "hn-hiring", "cb-news"],
+        "maxResults": 20,
+        "recencyDays": 30,
+        "triggerEventTypes": ["funding", "hiring", "leadership", "launch"]
+      },
+      "sectionCaption": "2. Choose Sources",
+      "sectionDescription": "Login-free, challenge-compliant sources: Y Combinator directory, HN 'Who is hiring' threads, Crunchbase News funding/launch articles. No LinkedIn / Apollo / Google scraping."
+    },
+    "urls": {
+      "title": "Direct Company URLs (optional)",
+      "type": "array",
+      "description": "Skip the sourcing block and feed URLs directly when you already have a target list (e.g. existing CRM accounts you want enriched + scored). Combinable with sourcing — both sets get enriched in the same run.",
+      "editor": "stringList",
+      "items": {
+        "type": "string"
+      },
+      "sectionCaption": "3. Or Enrich a Specific URL List (optional)",
+      "sectionDescription": "Most users should use the Sourcing block above. Use this when you already have a target list to enrich + score."
+    },
+    "extractKeyPeople": {
+      "title": "Extract Decision Makers",
+      "type": "boolean",
+      "description": "Crawl team / leadership / about pages and extract decision-makers (name, title, role category, LinkedIn URL). Categories: founder, executive, sales, marketing, tech, product, finance, people.",
+      "default": true,
+      "editor": "checkbox",
+      "sectionCaption": "4. BD Intelligence",
+      "sectionDescription": "Sales-focused features: who to contact, why now, and is this lead worth pursuing."
+    },
+    "detectIntentSignals": {
+      "title": "Detect Buying-Intent Signals",
+      "type": "boolean",
+      "description": "Surface trigger events worth reaching out about: recent funding mentions, hiring surges (open roles by department), leadership changes, product launches, and recent press headlines.",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "generateOutreachHooks": {
+      "title": "Generate Outreach Hooks (LLM)",
+      "type": "boolean",
+      "description": "Use Apify's built-in LLM (OpenRouter proxy) to generate 2-3 ready-to-send personalisation hooks per lead, grounded in the extracted signals. Adds an LLM cost (billed as Apify platform usage). Off by default.",
+      "default": false,
+      "editor": "checkbox"
+    },
+    "extractEmails": {
+      "title": "Extract Emails",
+      "type": "boolean",
+      "description": "Find and extract business email addresses (info@, sales@, contact@, etc.). Filters out generic emails like noreply@.",
+      "default": true,
+      "editor": "checkbox",
+      "sectionCaption": "5. Core Enrichment",
+      "sectionDescription": "Always-on extraction layer applied to every lead — sourced or directly-input."
+    },
+    "extractPhones": {
+      "title": "Extract Phone Numbers",
+      "type": "boolean",
+      "description": "Find and extract phone numbers in various formats (US, international, formatted).",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "detectTechStack": {
+      "title": "Detect Tech Stack",
+      "type": "boolean",
+      "description": "Identify 50+ technologies including CMS (WordPress, Shopify), analytics (GA, Mixpanel), chat widgets (Intercom, Drift), payment (Stripe), and frameworks (React, Vue).",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "includeSocialProfiles": {
+      "title": "Include Social Profiles",
+      "type": "boolean",
+      "description": "Extract links to social media profiles: LinkedIn, Twitter/X, Facebook, YouTube, GitHub, Instagram, Crunchbase.",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "detectBusinessSignals": {
+      "title": "Detect Business Signals",
+      "type": "boolean",
+      "description": "Identify business signals: careers page (hiring), pricing page, blog activity, customer logos, and estimate company size (1-10, 11-50, 51-200, 200+).",
+      "default": true,
+      "editor": "checkbox"
+    },
+    "maxPagesPerDomain": {
+      "title": "Max Pages Per Domain",
+      "type": "integer",
+      "description": "Maximum pages to crawl per company. More pages = better decision-maker and intent-signal coverage but longer runtime and higher cost. Recommended: 10 for basic enrichment, 20+ for full BD analysis.",
+      "default": 10,
+      "minimum": 1,
+      "maximum": 50,
+      "editor": "number",
+      "sectionCaption": "6. Crawl & Proxy Settings",
+      "sectionDescription": "Tune crawl depth and proxy behaviour."
+    },
+    "proxyConfiguration": {
+      "title": "Proxy Configuration",
+      "type": "object",
+      "description": "Use Apify Proxy to avoid being blocked by websites. Highly recommended for large-scale enrichment or sites with bot protection.",
+      "editor": "proxy",
+      "prefill": {
+        "useApifyProxy": true
+      }
+    }
+  },
+  "required": []
+}
