@@ -44,6 +44,27 @@ Output rows include a `discovery` block with sources, signal-typed events, `firs
 - **Competitive Analysis**: Understand competitor tech stacks and business signals.
 - **Account-Based Marketing**: Identify decision-makers per account and generate per-account personalisation hooks at scale.
 
+## How It Compares
+
+Quick read on where this actor fits in the B2B lead-intelligence landscape.
+
+### vs Apollo.io
+Apollo's strength is a massive seeded contact database; the trade-off is a per-contact subscription ($0.10–$0.30/lead), credit caps that bite when you scale, and a sourcing model that scrapes platforms (LinkedIn, Google) the Apify $1M Challenge explicitly excludes. **B2B Lead Intelligence** uses only login-free public sources (YC, HN hiring, Crunchbase News), charges per-event ($0.0025/lead — 40-120× cheaper), and adds *trigger-event* signals (funding, hiring surges, leadership changes) that Apollo treats as a separate paid module.
+
+### vs Clearbit (now HubSpot Breeze Intelligence)
+Clearbit's API enriches a domain you already have. It does *not* discover new accounts for you. **B2B Lead Intelligence** does both — ICP-driven discovery *and* enrichment — in a single run, and lets you bring your own URL list when you don't need sourcing. At $0.0025/lead vs Clearbit's $0.36/lookup, you can run a full account list weekly for the cost of a single Clearbit query.
+
+### vs Lusha
+Lusha leans heavily on personal contact data (email/phone for individuals at target accounts) — useful, but legally fraught in many jurisdictions and increasingly throttled. **B2B Lead Intelligence** focuses on company-level intelligence + decision-maker discovery from publicly available pages (team / leadership / about), so the data is grounded and reproducible. If Lusha is your contact-finder, this actor is your account-prioritiser.
+
+### vs Hunter.io
+Hunter is purpose-built for finding email addresses by domain. It's narrower in scope. **B2B Lead Intelligence** also extracts emails — and adds tech stack, decision-makers, intent signals, and ICP scoring on top. Use Hunter when you need verified email discovery at depth; use this when you need to *qualify* the account first.
+
+### When this actor isn't the right fit
+- You need verified personal phone numbers — Lusha or ZoomInfo serve that better.
+- You need a contact-level credit-based API matching individual records — Apollo / Clearbit are stronger there.
+- You need ten-million-row enterprise database licences — this is a per-run actor, not a data warehouse.
+
 ## Input
 
 The primary mode is **ICP + sourcing** (let the actor find your leads):
