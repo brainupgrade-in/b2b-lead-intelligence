@@ -7,18 +7,29 @@ ICP-driven lead intelligence for B2B sales teams. Describe your Ideal Customer P
 ## How it works
 
 1. **Define your ICP** — industries, size band, tech stack, geo, keywords.
-2. **Pick sources** — `yc` (Y Combinator directory), `hn-hiring` (HN "Who is hiring?" thread), `cb-news` (Crunchbase News funding/launch articles).
+2. **Pick sources** — `yc` (Y Combinator directory), `hn-hiring` (HN "Who is hiring?" thread), `techcrunch` (funding/launch articles), `prnewswire` (corporate press releases), `cb-news` (Crunchbase News).
 3. **The actor discovers** matching companies, dedupes across sources, and ranks by relevance.
 4. **The actor enriches** each lead — emails, phones, tech stack, social profiles, decision-makers, intent signals.
 5. **The actor scores** every lead 0-100 against your ICP and (optionally) drafts 2-3 personalised outreach hooks.
 
 Already have a target list? Skip sourcing and feed URLs directly — the same enrichment + scoring layer applies.
 
+### Two run modes
+
+| Mode | Per-lead price | What you get | Best for |
+|---|---|---|---|
+| **`feed`** (fast) | **$0.0005** | Sourced lead + ICP relevance + signal-derived intent (funding amount, hiring signal, launch). No per-site crawl. ~1s per lead. | High-volume daily watchlists, CRM ingestion, dashboards |
+| **`enriched`** (deep, default) | **$0.0025** | Everything in feed + full crawl: contacts, tech stack, decision-makers, ICP fit score with reasons, optional LLM outreach hooks. ~30-60s per lead. | Sales-ready records, account-level outreach |
+
+Pick `feed` when you want a steady fire-hose of qualified leads to triage; pick `enriched` when you've narrowed to specific targets and need everything to actually outreach.
+
 ## Features
 
 ### Lead sourcing (login-free, no scraping of blocked platforms)
 - **`yc`** — Y Combinator companies directory via the public Algolia-backed search. ICP-fit signal via batch + industry filters.
 - **`hn-hiring`** — Hacker News "Ask HN: Who is hiring?" monthly thread. Hiring-trigger signal, top-level comments parsed for company + URL + summary.
+- **`techcrunch`** — TechCrunch RSS. Funding rounds, launches, M&A, leadership news.
+- **`prnewswire`** — PRNewswire RSS. Corporate press releases — funding announcements, leadership appointments, product launches.
 - **`cb-news`** — Crunchbase News (the journalism site, *not* the database). Funding & launch triggers parsed from the public RSS feed.
 
 Output rows include a `discovery` block with sources, signal-typed events, `firstSeenAt`, and a 0-100 `relevanceScore` (multi-source overlap + signal-type weighting + ICP keyword/industry hits at sourcing time). Companies surfaced by multiple sources get bumped up.
@@ -111,8 +122,9 @@ When you already have target accounts (e.g. existing CRM):
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
+| `mode` | string | `enriched` | `feed` for fast/cheap sourcing-only output, `enriched` for full crawl + extraction |
 | `idealCustomerProfile` | object | - | Your ICP. Drives sourcing relevance and per-lead 0-100 fit-score. Fields: `industries[]`, `sizeMin`, `sizeMax`, `requiredTech[]`, `preferredTech[]`, `geo[]`, `keywords[]` |
-| `sourcing` | object | - | Sourcing config. Fields: `sources` (`'yc'\|'hn-hiring'\|'cb-news'[]`), `maxResults`, `recencyDays`, `triggerEventTypes` (`'funding'\|'hiring'\|'launch'\|'leadership'\|'directory'[]`), `industries[]`, `keywords[]`. The actor discovers leads first, then enriches them. |
+| `sourcing` | object | - | Sourcing config. Fields: `sources` (`'yc'\|'hn-hiring'\|'techcrunch'\|'prnewswire'\|'cb-news'[]`), `maxResults`, `recencyDays`, `triggerEventTypes` (`'funding'\|'hiring'\|'launch'\|'leadership'\|'directory'[]`), `industries[]`, `keywords[]`. The actor discovers leads first, then enriches them. |
 | `urls` | array | - | Optional direct URL list. Use when you already have target accounts. Combinable with sourcing. Required *only* when `sourcing.sources` is empty. |
 | `extractKeyPeople` | boolean | true | Extract decision-makers from team / leadership pages |
 | `detectIntentSignals` | boolean | true | Detect funding, hiring surges, leadership changes, product launches |

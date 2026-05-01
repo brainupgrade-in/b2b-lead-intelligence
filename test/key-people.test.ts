@@ -36,11 +36,18 @@ describe('extractKeyPeople', () => {
     expect(names).not.toContain('Lower Case');
   });
 
-  it('skips pages whose URL does not look like a people/team page', () => {
+  it('skips pages whose URL is neither people-shape nor about-shape', () => {
     const people = extractKeyPeople([
       { url: 'https://acme.example/pricing', html: fixture('team-jsonld.html') },
     ]);
     expect(people).toEqual([]);
+  });
+
+  it('also probes /about pages (P0 fix — about pages often embed leadership cards)', () => {
+    const people = extractKeyPeople([
+      { url: 'https://acme.example/about', html: fixture('team-jsonld.html') },
+    ]);
+    expect(people.find((p) => p.name === 'Jane Smith')).toBeDefined();
   });
 
   it('dedupes when JSON-LD and LinkedIn-anchor extractors find the same person', () => {

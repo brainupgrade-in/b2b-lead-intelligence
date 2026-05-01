@@ -4,6 +4,17 @@
   "type": "object",
   "schemaVersion": 1,
   "properties": {
+    "mode": {
+      "title": "Run Mode",
+      "type": "string",
+      "description": "How much work to do per lead. 'feed' = fast trigger feed: source the leads, attach signals + ICP relevance, no per-site crawl. 5x cheaper, ~30s for 20 leads, thinner data. 'enriched' = full crawl: contacts, tech stack, decision-makers, intent signals — everything.",
+      "default": "enriched",
+      "enum": ["feed", "enriched"],
+      "enumTitles": ["Feed (fast, $0.0005/lead) — discovery + signals only", "Enriched (deep, $0.0025/lead) — full crawl + BD intel"],
+      "editor": "select",
+      "sectionCaption": "0. Run Mode",
+      "sectionDescription": "Pick fast trigger-feed for high-volume sourcing, or deep enrichment for sales-ready records."
+    },
     "idealCustomerProfile": {
       "title": "Ideal Customer Profile (ICP)",
       "type": "object",
@@ -25,13 +36,13 @@
       "description": "Pick the public sources to scan. The actor discovers companies matching your ICP, dedupes across sources, ranks by relevance (signal-type weighting + multi-source overlap + ICP keyword/industry hits), then enriches the top N in the same run.",
       "editor": "json",
       "prefill": {
-        "sources": ["yc", "hn-hiring", "cb-news"],
+        "sources": ["yc", "hn-hiring", "techcrunch", "prnewswire", "cb-news"],
         "maxResults": 20,
         "recencyDays": 30,
         "triggerEventTypes": ["funding", "hiring", "leadership", "launch"]
       },
       "sectionCaption": "2. Choose Sources",
-      "sectionDescription": "Login-free, challenge-compliant sources: Y Combinator directory, HN 'Who is hiring' threads, Crunchbase News funding/launch articles. No LinkedIn / Apollo / Google scraping."
+      "sectionDescription": "Login-free, challenge-compliant sources: Y Combinator directory, HN 'Who is hiring' threads, TechCrunch funding/launch articles, PRNewswire press releases, Crunchbase News. No LinkedIn / Apollo / Google scraping."
     },
     "urls": {
       "title": "Direct Company URLs (optional)",

@@ -8,7 +8,9 @@ export interface IdealCustomerProfile {
   keywords?: string[];
 }
 
-export type SourceName = 'yc' | 'hn-hiring' | 'cb-news';
+export type SourceName = 'yc' | 'hn-hiring' | 'cb-news' | 'techcrunch' | 'prnewswire';
+
+export type ActorMode = 'feed' | 'enriched';
 
 export type TriggerEventType =
   | 'funding'
@@ -50,6 +52,7 @@ export interface DiscoveryBlock {
 }
 
 export interface Input {
+  mode?: ActorMode;
   urls?: string[];
   sourcing?: SourcingConfig;
   maxPagesPerDomain: number;

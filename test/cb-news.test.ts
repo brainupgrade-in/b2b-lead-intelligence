@@ -35,28 +35,70 @@ describe('matchFunding', () => {
 });
 
 describe('extractCompanyName', () => {
-  it('takes the leading capitalised words', () => {
-    expect(extractCompanyName('Acme Robotics Raises $20M Series B')).toBe('Acme Robotics Raises');
-    expect(extractCompanyName('Beta Health Lands $5M Seed')).toBe('Beta Health Lands');
+  it('extracts subject from "<Company> <verb> ..." headlines', () => {
+    expect(extractCompanyName('Acme Robotics Raises $20M Series B')).toBe('Acme Robotics');
+    expect(extractCompanyName('Beta Health Lands $5M Seed')).toBe('Beta Health');
   });
-  it('returns null when title does not start with capitalised words', () => {
+
+  // REGRESSION: previous behaviour returned "Swedish Legal Tech Startup Legora"
+  // and let pickCompanyHomepageFromHtml return any cited URL — this surfaced
+  // CNBC as a fake lead. The fix peels descriptor prefixes.
+  it('peels descriptor words ("Swedish Legal Tech Startup Legora Lands ...") to "Legora"', () => {
+    expect(extractCompanyName('Swedish Legal Tech Startup Legora Lands Another $50M In Nvidia-Led Series D Extension')).toBe('Legora');
+    expect(extractCompanyName('UK Fintech Startup Brex Closes $40M')).toBe('Brex');
+  });
+
+  it('falls back to leading cap-words when no action verb is present', () => {
+    expect(extractCompanyName('Acme Robotics — quarterly update')).toBe('Acme Robotics');
+  });
+
+  it('returns null when title does not start with capitalised words and has no verb-aligned subject', () => {
     expect(extractCompanyName('lowercase-name-startup raises money')).toBeNull();
   });
 });
 
 describe('pickCompanyHomepageFromHtml', () => {
-  it('skips aggregator links and returns the first company-looking URL', () => {
+  it('legacy mode (no companyName): skips aggregator links and returns first company-looking URL', () => {
     const html =
       '<a href="https://news.crunchbase.com/x">cb</a>' +
       '<a href="https://techcrunch.com/x">tc</a>' +
       '<a href="https://acmerobotics.example/">company</a>';
     expect(pickCompanyHomepageFromHtml(html)).toBe('https://acmerobotics.example/');
   });
-  it('returns null when only aggregator/news hosts are linked', () => {
+
+  it('legacy mode: returns null when only aggregator/news hosts are linked', () => {
     const html =
       '<a href="https://news.crunchbase.com/x">cb</a>' +
       '<a href="https://techcrunch.com/x">tc</a>';
     expect(pickCompanyHomepageFromHtml(html)).toBeNull();
+  });
+
+  // REGRESSION (CNBC bug): when a companyName is supplied, the picker must
+  // verify that the chosen URL plausibly belongs to that company — anchor
+  // text or hostname token match — and refuse otherwise. Previously returned
+  // any non-aggregator URL → cited cnbc.com surfaced as a "lead".
+  it('strict mode: refuses URLs unrelated to the title-extracted company', () => {
+    const html =
+      '<a href="https://cnbc.com/2026/04/30/legal-tech.html">CNBC coverage</a>' +
+      '<a href="https://reuters.com/x">Reuters</a>';
+    expect(pickCompanyHomepageFromHtml(html, 'Legora')).toBeNull();
+  });
+
+  it('strict mode: accepts URLs whose hostname contains a name token', () => {
+    const html = '<a href="https://legora.com/about">Legora homepage</a>';
+    expect(pickCompanyHomepageFromHtml(html, 'Legora')).toBe('https://legora.com/about');
+  });
+
+  it('strict mode: accepts URLs whose anchor text contains the company name', () => {
+    const html = '<a href="https://acme-prod.example/">Visit Legora</a>';
+    expect(pickCompanyHomepageFromHtml(html, 'Legora')).toBe('https://acme-prod.example/');
+  });
+
+  it('strict mode: prefers the company link over a cited publication', () => {
+    const html =
+      '<a href="https://cnbc.com/x">CNBC coverage</a>' +
+      '<a href="https://legora.com/">Legora</a>';
+    expect(pickCompanyHomepageFromHtml(html, 'Legora')).toBe('https://legora.com/');
   });
 });
 

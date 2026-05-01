@@ -81,49 +81,121 @@ function estimateHiringSurge(pages: PageInput[]): HiringSurge {
   if (pages.length === 0) return { openRoles: 0, departments: [] };
 
   const departments = new Set<string>();
-  let openRoles = 0;
+  const seenRoles = new Set<string>();
+
+  const recordRole = (roleText: string): void => {
+    const trimmed = roleText.trim();
+    if (trimmed.length < 3 || trimmed.length > 140) return;
+    const key = trimmed.toLowerCase();
+    if (seenRoles.has(key)) return;
+    // Filter clear non-roles ("Apply now", "View all", section labels)
+    if (/^(apply|view all|see all|see more|all jobs?|open roles?|careers?|join|learn more)$/i.test(trimmed)) return;
+    seenRoles.add(key);
+    classifyDepartment(trimmed, departments);
+  };
 
   for (const page of pages) {
-    // Count likely job links: anchors pointing to /jobs/<slug> or external ATS hosts
+    // Strategy 1: anchor links to ATS hosts or /jobs/<slug>
     const jobLinkRe = /<a[^>]+href=["']([^"']*(?:greenhouse\.io\/jobs|lever\.co\/[^"']+|workable\.com|ashbyhq|jobvite|smartrecruiters|\/jobs?\/[a-z0-9-]+|\/careers?\/[a-z0-9-]+))["'][^>]*>([^<]{3,140})<\/a>/gi;
-    const seenRoles = new Set<string>();
     let m: RegExpExecArray | null;
     while ((m = jobLinkRe.exec(page.html)) !== null) {
-      const roleText = decode(m[2]).trim();
-      if (roleText.length < 3) continue;
-      if (seenRoles.has(roleText.toLowerCase())) continue;
-      seenRoles.add(roleText.toLowerCase());
-      openRoles++;
-      classifyDepartment(roleText, departments);
+      recordRole(decode(m[2]));
+    }
+
+    // Strategy 2: JSON-LD JobPosting blocks. Many sites embed structured data
+    // for SEO even when their visible markup is JS-rendered. Counts roles
+    // even if the actual list never hydrates server-side.
+    const ldRe = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    while ((m = ldRe.exec(page.html)) !== null) {
+      try {
+        const data = JSON.parse(m[1].trim());
+        walkForJobPostings(data, recordRole);
+      } catch {
+        // Malformed JSON-LD — ignore
+      }
+    }
+
+    // Strategy 3: heading-based role lists (only on careers-shape pages so we
+    // don't mis-classify random h-tags as roles).
+    if (isCareerPage(page.url)) {
+      const headingRe = /<h[2-4][^>]*>([^<]{4,120})<\/h[2-4]>/gi;
+      while ((m = headingRe.exec(page.html)) !== null) {
+        const txt = decode(m[1]).trim();
+        if (looksLikeRole(txt)) recordRole(txt);
+      }
+      // List-item roles ("Senior Backend Engineer · Remote")
+      const liRe = /<li[^>]*>([^<]{4,140})<\/li>/gi;
+      while ((m = liRe.exec(page.html)) !== null) {
+        const txt = decode(m[1]).trim().split(/[·•|—–]/)[0]?.trim();
+        if (txt && looksLikeRole(txt)) recordRole(txt);
+      }
     }
   }
 
   return {
-    openRoles,
+    openRoles: seenRoles.size,
     departments: Array.from(departments).sort(),
   };
 }
 
+function walkForJobPostings(node: unknown, record: (role: string) => void): void {
+  if (!node) return;
+  if (Array.isArray(node)) {
+    for (const child of node) walkForJobPostings(child, record);
+    return;
+  }
+  if (typeof node !== 'object') return;
+  const obj = node as Record<string, unknown>;
+  const type = obj['@type'];
+  if (type === 'JobPosting' && typeof obj.title === 'string') {
+    record(obj.title);
+  }
+  for (const v of Object.values(obj)) {
+    if (typeof v === 'object' && v !== null) walkForJobPostings(v, record);
+  }
+}
+
+function looksLikeRole(text: string): boolean {
+  // Must contain a role-shaped keyword to count as a job title.
+  return /\b(engineer|developer|manager|director|lead|head|architect|designer|analyst|scientist|specialist|representative|executive|officer|consultant|associate|coordinator|recruiter|advocate|advisor|strategist|administrator|writer|editor|producer|partner|founder|president|controller|counsel|operator|technician)\b/i.test(text);
+}
+
+const DEPARTMENT_BUCKETS: Array<{ dept: string; pat: RegExp }> = [
+  { dept: 'engineering', pat: /\b(engineer|developer|sre|devops|swe|infrastructure|platform|backend|frontend|fullstack|full-stack|qa|quality assurance)\b/i },
+  { dept: 'sales', pat: /\b(sales|account executive|\bae\b|\bsdr\b|\bbdr\b|account manager|business development|gtm)\b/i },
+  { dept: 'marketing', pat: /\b(marketing|growth|content|seo|brand|demand gen|product marketing)\b/i },
+  { dept: 'product', pat: /\b(product manager|\bpm\b|product designer|product owner)\b/i },
+  { dept: 'design', pat: /\b(designer|design lead|ux|ui|user experience)\b/i },
+  { dept: 'data', pat: /\b(data (scientist|analyst|engineer)|machine learning|\bml\b|\bai\b|analytics)\b/i },
+  { dept: 'operations', pat: /\b(operations|ops manager|coo|chief of staff)\b/i },
+  { dept: 'finance', pat: /\b(finance|accountant|controller|fp&a|cfo)\b/i },
+  { dept: 'people', pat: /\b(recruiter|talent|people ops|human resources|\bhr\b)\b/i },
+  { dept: 'support', pat: /\b(customer success|support|customer experience|onboarding)\b/i },
+  { dept: 'legal', pat: /\b(legal|counsel|paralegal|compliance)\b/i },
+];
+
 function classifyDepartment(roleText: string, into: Set<string>): void {
-  const buckets: Array<{ dept: string; pat: RegExp }> = [
-    { dept: 'engineering', pat: /\b(engineer|developer|sre|devops|swe|infrastructure|platform|backend|frontend|fullstack|full-stack|qa|quality assurance)\b/i },
-    { dept: 'sales', pat: /\b(sales|account executive|\bae\b|\bsdr\b|\bbdr\b|account manager|business development|gtm)\b/i },
-    { dept: 'marketing', pat: /\b(marketing|growth|content|seo|brand|demand gen|product marketing)\b/i },
-    { dept: 'product', pat: /\b(product manager|\bpm\b|product designer|product owner)\b/i },
-    { dept: 'design', pat: /\b(designer|design lead|ux|ui|user experience)\b/i },
-    { dept: 'data', pat: /\b(data (scientist|analyst|engineer)|machine learning|\bml\b|\bai\b|analytics)\b/i },
-    { dept: 'operations', pat: /\b(operations|ops manager|coo|chief of staff)\b/i },
-    { dept: 'finance', pat: /\b(finance|accountant|controller|fp&a|cfo)\b/i },
-    { dept: 'people', pat: /\b(recruiter|talent|people ops|human resources|\bhr\b)\b/i },
-    { dept: 'support', pat: /\b(customer success|support|customer experience|onboarding)\b/i },
-    { dept: 'legal', pat: /\b(legal|counsel|paralegal|compliance)\b/i },
-  ];
-  for (const b of buckets) {
+  for (const b of DEPARTMENT_BUCKETS) {
     if (b.pat.test(roleText)) {
       into.add(b.dept);
       return;
     }
   }
+}
+
+/**
+ * Run all bucket patterns against a free-text description (e.g. an HN hiring
+ * comment) and return every matching department. Used by the hiring-floor
+ * reconciliation in main.ts when discovery surfaced a hiring signal but the
+ * homepage-side extractor missed open roles.
+ */
+export function inferDepartmentsFromText(text: string): string[] {
+  if (!text) return [];
+  const out = new Set<string>();
+  for (const b of DEPARTMENT_BUCKETS) {
+    if (b.pat.test(text)) out.add(b.dept);
+  }
+  return Array.from(out).sort();
 }
 
 function findLeadershipChange(pages: PageInput[]): LeadershipChange | null {

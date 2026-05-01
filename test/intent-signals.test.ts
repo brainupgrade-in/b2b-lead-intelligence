@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { detectIntentSignals } from '../src/extractors/intent-signals.js';
+import { detectIntentSignals, inferDepartmentsFromText } from '../src/extractors/intent-signals.js';
 
 const pressPage = (text: string, html?: string, title: string | null = null) => ({
   url: 'https://acme.example/press/release',
@@ -31,7 +31,56 @@ describe('detectIntentSignals: funding', () => {
   });
 });
 
+describe('inferDepartmentsFromText (hiring-floor reconciliation helper)', () => {
+  it('returns matching departments for HN-style hiring text', () => {
+    const text = 'BIT Capital | Principal Engineer (Data & Platform) | Berlin | Full-time, Account Executive role too';
+    const depts = inferDepartmentsFromText(text);
+    expect(depts).toEqual(expect.arrayContaining(['engineering', 'sales']));
+  });
+
+  it('returns [] for empty / non-role text', () => {
+    expect(inferDepartmentsFromText('')).toEqual([]);
+    expect(inferDepartmentsFromText('Some unrelated marketing copy')).toEqual(['marketing']);
+  });
+});
+
 describe('detectIntentSignals: hiring surge', () => {
+  it('counts JSON-LD JobPosting blocks even when visible HTML has no anchors', () => {
+    const html = `<html><body>
+      <script type="application/ld+json">${JSON.stringify({
+        '@type': 'JobPosting',
+        title: 'Senior Backend Engineer',
+      })}</script>
+      <script type="application/ld+json">${JSON.stringify({
+        '@type': 'JobPosting',
+        title: 'Account Executive — EMEA',
+      })}</script>
+    </body></html>`;
+    const out = detectIntentSignals([{
+      url: 'https://acme.example/careers',
+      html,
+      text: '',
+      title: null,
+    }]);
+    expect(out.hiringSurge.openRoles).toBe(2);
+    expect(out.hiringSurge.departments).toEqual(expect.arrayContaining(['engineering', 'sales']));
+  });
+
+  it('detects heading-based roles on career pages (no anchor required)', () => {
+    const html = `
+      <h2>Senior Software Engineer</h2>
+      <h2>Product Manager</h2>
+      <h2>Open Roles</h2>
+    `;
+    const out = detectIntentSignals([{
+      url: 'https://acme.example/careers',
+      html,
+      text: '',
+      title: null,
+    }]);
+    expect(out.hiringSurge.openRoles).toBe(2); // "Open Roles" is filtered as a section label
+  });
+
   it('counts ATS-link job cards and classifies departments', () => {
     const html = `
       <a href="https://boards.greenhouse.io/acme/jobs/123">Senior Backend Engineer</a>

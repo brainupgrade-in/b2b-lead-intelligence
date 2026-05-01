@@ -84,6 +84,31 @@ describe('Apify actor.json', () => {
   });
 });
 
+describe('Pay-per-event config', () => {
+  const ppe = JSON.parse(
+    readFileSync(join(ROOT, '.actor/pay_per_event.json'), 'utf-8'),
+  );
+
+  it('declares both lead-enrichment and lead-feed events', () => {
+    const eventNames = ppe.eventDescriptors.map((e: { eventName: string }) => e.eventName);
+    expect(eventNames).toEqual(expect.arrayContaining(['lead-enrichment', 'lead-feed']));
+  });
+
+  it('feed mode is priced strictly lower than enriched mode (5x by design)', () => {
+    const enriched = ppe.eventDescriptors.find((e: { eventName: string; eventPriceUsd: number }) => e.eventName === 'lead-enrichment');
+    const feed = ppe.eventDescriptors.find((e: { eventName: string; eventPriceUsd: number }) => e.eventName === 'lead-feed');
+    expect(feed.eventPriceUsd).toBeLessThan(enriched.eventPriceUsd);
+  });
+});
+
+describe('Mode toggle in input schema', () => {
+  it('declares mode with feed/enriched enum and enriched as default', () => {
+    expect(inputSchema.properties.mode).toBeDefined();
+    expect(inputSchema.properties.mode.enum).toEqual(['feed', 'enriched']);
+    expect(inputSchema.properties.mode.default).toBe('enriched');
+  });
+});
+
 describe('Input validation gate (operational invariant)', () => {
   it('rejects null/undefined input', () => {
     expect(() => validateInput(null)).toThrow(/no input/i);

@@ -142,15 +142,42 @@ describe('sourceLeads orchestrator', () => {
     mockHn.mockResolvedValue([lead({ companyUrl: 'https://hn.example', companyName: 'HN Co' })]);
     mockCb.mockResolvedValue([lead({ companyUrl: 'https://cb.example', companyName: 'CB Co' })]);
 
-    const out = await sourceLeads(
+    const { leads, stats } = await sourceLeads(
       { sources: ['yc', 'hn-hiring', 'cb-news'], maxResults: 10 },
       undefined,
     );
-    expect(out).toHaveLength(2);
-    expect(out.map((l) => l.companyUrl).sort()).toEqual([
+    expect(leads).toHaveLength(2);
+    expect(leads.map((l) => l.companyUrl).sort()).toEqual([
       'https://cb.example',
       'https://hn.example',
     ]);
+    // Per-source stats: yc errored, others ok
+    const ycStat = stats.find((s) => s.source === 'yc')!;
+    expect(ycStat.status).toBe('error');
+    expect(ycStat.error).toMatch(/YC down/);
+    expect(stats.find((s) => s.source === 'hn-hiring')!.status).toBe('ok');
+    expect(stats.find((s) => s.source === 'cb-news')!.status).toBe('ok');
+  });
+
+  it('reports rawCount per source (before dedup / cap)', async () => {
+    mockYc.mockResolvedValue([
+      lead({ companyUrl: 'https://shared.example' }),
+      lead({ companyUrl: 'https://yc-only.example' }),
+    ]);
+    mockHn.mockResolvedValue([
+      lead({ companyUrl: 'https://shared.example' }), // dups via canonical domain
+    ]);
+    mockCb.mockResolvedValue([]);
+
+    const { leads, stats } = await sourceLeads(
+      { sources: ['yc', 'hn-hiring', 'cb-news'], maxResults: 10 },
+      undefined,
+    );
+    // Final leads de-duped to 2, but rawCount preserves what each source produced
+    expect(leads).toHaveLength(2);
+    expect(stats.find((s) => s.source === 'yc')!.rawCount).toBe(2);
+    expect(stats.find((s) => s.source === 'hn-hiring')!.rawCount).toBe(1);
+    expect(stats.find((s) => s.source === 'cb-news')!.rawCount).toBe(0);
   });
 
   it('honours triggerEventTypes filter', async () => {
@@ -168,12 +195,12 @@ describe('sourceLeads orchestrator', () => {
     ]);
     mockCb.mockResolvedValue([]);
 
-    const out = await sourceLeads(
+    const { leads } = await sourceLeads(
       { sources: ['yc', 'hn-hiring'], maxResults: 10, triggerEventTypes: ['hiring'] },
       undefined,
     );
-    expect(out).toHaveLength(1);
-    expect(out[0].companyUrl).toBe('https://a.example');
+    expect(leads).toHaveLength(1);
+    expect(leads[0].companyUrl).toBe('https://a.example');
   });
 
   it('caps output at maxResults after scoring (highest relevance wins)', async () => {
@@ -191,16 +218,17 @@ describe('sourceLeads orchestrator', () => {
     ]);
     mockCb.mockResolvedValue([]);
 
-    const out = await sourceLeads(
+    const { leads } = await sourceLeads(
       { sources: ['yc', 'hn-hiring'], maxResults: 1 },
       undefined,
     );
-    expect(out).toHaveLength(1);
-    expect(out[0].companyUrl).toBe('https://high.example');
+    expect(leads).toHaveLength(1);
+    expect(leads[0].companyUrl).toBe('https://high.example');
   });
 
-  it('returns [] when no sources configured (no-op)', async () => {
-    const out = await sourceLeads({ sources: [], maxResults: 10 }, undefined);
-    expect(out).toEqual([]);
+  it('returns empty result when no sources configured (no-op)', async () => {
+    const { leads, stats } = await sourceLeads({ sources: [], maxResults: 10 }, undefined);
+    expect(leads).toEqual([]);
+    expect(stats).toEqual([]);
   });
 });

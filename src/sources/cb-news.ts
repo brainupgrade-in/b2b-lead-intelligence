@@ -43,7 +43,14 @@ export async function findCbNewsLeads(criteria: CbNewsCriteria): Promise<Sourced
       if (!hit) continue;
     }
 
-    const homepageUrl = pickCompanyHomepageFromHtml(item.contentEncoded || item.description);
+    // CRITICAL: pickCompanyHomepageFromHtml previously returned the FIRST
+    // non-aggregator URL in the body — which surfaced cited publications
+    // (e.g. cnbc.com) as fake leads. Now the URL must plausibly belong to
+    // the title-extracted subject company, else we drop the item.
+    const homepageUrl = pickCompanyHomepageFromHtml(
+      item.contentEncoded || item.description,
+      companyName,
+    );
     if (!homepageUrl) continue;
 
     const domainKey = canonicalDomain(homepageUrl);
@@ -129,25 +136,94 @@ export function matchFunding(text: string): string | null {
   return m ? (m[0] || '').trim() : null;
 }
 
+/**
+ * Action verbs commonly used in funding/launch/acquisition headlines.
+ * The subject company name is the capitalised token sequence immediately
+ * BEFORE the verb, with descriptor words ("Swedish", "Tech", "Startup") peeled.
+ */
+const ACTION_VERBS_RE = /\b(raises|raised|lands|landed|closes|closed|secures|secured|announces|announced|acquires|acquired|launches|launched|wraps|wrapped|nabs|nabbed|grabs|grabbed|debuts|debuted|expands|expanded|hires|hired|appoints|appointed|names|named|introduces|introduced|unveils|unveiled|files|filed|completes|completed|reveals|revealed|gets|gains|gained|reaches|reached|brings)\b/i;
+
+const DESCRIPTOR_WORDS_RE = /^(swedish|german|french|chinese|us|uk|european|asian|israeli|indian|japanese|korean|nordic|legal|tech|saas|paas|iaas|startup|company|firm|fintech|edtech|insurtech|biotech|healthtech|cleantech|deeptech|enterprise|crypto|web3|ai|ml|the|a|an|new|leading|top|global|local|inc|llc|corp|ltd|gmbh|sàrl|co)$/i;
+
 export function extractCompanyName(title: string): string | null {
-  // CB News headlines often follow patterns like:
-  //   "Acme Raises $20M Series B"  ->  "Acme"
-  //   "Acme, A Sales Tool, Lands $5M"
-  //   "Acme Acquires BetaCo"        ->  "Acme"
   if (!title) return null;
   const cleanTitle = title.replace(/<[^>]+>/g, '').trim();
-  const capWords = /^([A-Z][A-Za-z0-9.&'’-]+(?:\s+[A-Z][A-Za-z0-9.&'’-]+){0,4})/;
-  const m = cleanTitle.match(capWords);
-  if (!m) return null;
-  return m[1].replace(/[,.]+$/, '').trim();
+
+  // Strategy: scan for the first action verb and take the capitalised tokens
+  // immediately before it. Falls back to leading cap-words if no verb found.
+  const verbMatch = cleanTitle.match(ACTION_VERBS_RE);
+  const before =
+    verbMatch && verbMatch.index !== undefined
+      ? cleanTitle.slice(0, verbMatch.index).trim()
+      : cleanTitle;
+
+  // Collect every capitalised token in `before` (in order).
+  const capRe = /([A-Z][A-Za-z0-9.&'’-]+)/g;
+  const tokens: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = capRe.exec(before)) !== null) tokens.push(m[1]);
+  if (tokens.length === 0) return null;
+
+  // Peel descriptor prefixes ("Swedish Legal Tech Startup Legora" → "Legora").
+  while (tokens.length > 1 && DESCRIPTOR_WORDS_RE.test(tokens[0])) {
+    tokens.shift();
+  }
+
+  // Take up to 3 remaining tokens — most company names are 1–3 words.
+  return tokens.slice(0, 3).join(' ').replace(/[,.]+$/, '').trim() || null;
 }
 
-export function pickCompanyHomepageFromHtml(html: string): string | null {
-  const re = /<a[^>]+href=["'](https?:\/\/[^"']+)["']/gi;
+/**
+ * Subject-aware URL picker. Scans `<a>` tags in the article body and only
+ * returns a URL whose anchor text or hostname plausibly maps to the
+ * title-extracted company name. Returns null when no confident match exists
+ * — better to drop a lead than fabricate one (this was the CNBC bug:
+ * the parser previously returned the first cited publisher's URL).
+ */
+export function pickCompanyHomepageFromHtml(
+  html: string,
+  companyName?: string | null,
+): string | null {
+  const nameTokens = companyName
+    ? companyName
+        .toLowerCase()
+        .split(/\s+/)
+        .filter((t) => t.length >= 3)
+    : [];
+
+  const linkRe = /<a[^>]+href=["'](https?:\/\/[^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
   let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
+  // Backward-compat: when no company name supplied, fall back to first acceptable.
+  let firstAcceptable: string | null = null;
+
+  while ((m = linkRe.exec(html)) !== null) {
     const url = m[1];
-    if (isCompanyHomepage(url)) return url;
+    if (!isCompanyHomepage(url)) continue;
+
+    if (nameTokens.length === 0) {
+      // No subject context — caller wants legacy behaviour.
+      return url;
+    }
+
+    const anchorText = m[2].toLowerCase().replace(/<[^>]+>/g, '');
+    let host = '';
+    try {
+      host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    } catch {
+      continue;
+    }
+    const firstLabel = host.split('.')[0];
+
+    const matchesAnchor = nameTokens.some((t) => anchorText.includes(t));
+    const matchesHost = nameTokens.some(
+      (t) => firstLabel.includes(t) || t.includes(firstLabel),
+    );
+    if (matchesAnchor || matchesHost) return url;
+
+    if (!firstAcceptable) firstAcceptable = url;
   }
+
+  // If a subject name was supplied and no confident match, refuse rather than
+  // emit a wrong lead. (firstAcceptable left unused on purpose.)
   return null;
 }

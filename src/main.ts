@@ -8,11 +8,12 @@ import { detectTechStack, mergeTechStacks } from './extractors/tech-stack.js';
 import { detectBusinessSignals } from './extractors/business-signals.js';
 import { extractCompanyName, extractDescription, extractMetadata } from './extractors/company-info.js';
 import { extractKeyPeople } from './extractors/key-people.js';
-import { detectIntentSignals } from './extractors/intent-signals.js';
+import { detectIntentSignals, inferDepartmentsFromText } from './extractors/intent-signals.js';
 import { scoreFit } from './extractors/fit-score.js';
 import { generateOutreachHooks } from './extractors/outreach-hooks.js';
 import { sourceLeads } from './sources/index.js';
 import { validateInput } from './utils/validate-input.js';
+import { buildFeedLead } from './feed-lead.js';
 
 await Actor.init();
 
@@ -21,6 +22,7 @@ const input = await Actor.getInput<Input>();
 validateInput(input);
 
 const {
+  mode = 'enriched',
   urls = [],
   sourcing,
   maxPagesPerDomain = 10,
@@ -37,6 +39,7 @@ const {
 } = input!;
 
 const sourcingEnabled = !!sourcing?.sources?.length;
+log.info(`Run mode: ${mode}`);
 
 // Setup proxy if configured
 let proxy: ProxyConfiguration | undefined;
@@ -45,16 +48,28 @@ if (proxyConfiguration) {
 }
 
 // Phase 1 (optional): source leads from public directories / news / hiring threads.
-type ProcessTarget = { url: string; discovery: DiscoveryBlock | null };
+type ProcessTarget = {
+  url: string;
+  discovery: DiscoveryBlock | null;
+  sourcedName?: string; // companyName resolved by sourcing — preferred over re-extraction
+};
 const targets: ProcessTarget[] = [];
 
 if (sourcingEnabled && sourcing) {
   log.info(`Sourcing leads from: ${sourcing.sources!.join(', ')}`);
-  const sourced = await sourceLeads(sourcing, idealCustomerProfile);
-  log.info(`Sourced ${sourced.length} unique leads from public sources`);
+  const { leads: sourced, stats } = await sourceLeads(sourcing, idealCustomerProfile);
+  for (const s of stats) {
+    if (s.status === 'ok') {
+      log.info(`  ${s.source} → ${s.rawCount} lead(s) before dedup`);
+    } else {
+      log.warning(`  ${s.source} → error: ${s.error}`);
+    }
+  }
+  log.info(`Sourced ${sourced.length} unique leads after dedup / filter / cap`);
   for (const lead of sourced) {
     targets.push({
       url: lead.companyUrl,
+      sourcedName: lead.companyName,
       discovery: {
         sources: lead.discoverySources,
         signals: lead.discoverySignals,
@@ -72,12 +87,25 @@ for (const u of urls) {
   targets.push({ url: u, discovery: null });
 }
 
-log.info(`Starting lead enrichment for ${targets.length} URL(s)`);
+if (mode === 'feed') {
+  log.info(`Feed mode: emitting ${targets.length} thin lead(s) without per-site crawl`);
+} else {
+  log.info(`Enriched mode: starting full crawl + extraction for ${targets.length} URL(s)`);
+}
 
-// Phase 2: enrich each URL.
+// Phase 2: per-target processing — feed mode emits a thin lead, enriched mode
+// runs the full crawl + extractor pipeline.
 for (const target of targets) {
   const inputUrl = target.url;
   const inputDiscovery = target.discovery;
+
+  if (mode === 'feed') {
+    const feedLead = buildFeedLead(target, idealCustomerProfile);
+    await Actor.pushData(feedLead);
+    log.info(`Feed: ${feedLead.companyName ?? inputUrl} (relevance ${inputDiscovery?.relevanceScore ?? '-'})`);
+    continue;
+  }
+
   try {
     const startTime = Date.now();
     const normalizedUrl = normalizeUrl(inputUrl);
@@ -116,8 +144,26 @@ for (const target of targets) {
         log.debug(`Crawling: ${url}`);
 
         try {
-          // Wait for page to load
+          // Initial parse signal — fires before client-side rendering completes.
           await page.waitForLoadState('domcontentloaded');
+
+          // SPA hydration wait: many modern sites (Next.js, MongoDB, etc.) render
+          // navigation links AFTER domcontentloaded. Without this wait the link
+          // extractor sees an empty <a> set and pagesCrawled collapses to 1.
+          // Strategy: wait briefly for ≥5 anchors; if not, fall back to networkidle.
+          await page.waitForFunction(
+            () => document.querySelectorAll('a[href]').length >= 5,
+            { timeout: 3000 },
+          ).catch(() => { /* will fall back below */ });
+
+          const initialAnchorCount = await page.evaluate(
+            () => document.querySelectorAll('a[href]').length,
+          );
+          if (initialAnchorCount < 5) {
+            await page
+              .waitForLoadState('networkidle', { timeout: 5000 })
+              .catch(() => { /* slow sites with persistent connections */ });
+          }
 
           // Get page content
           const html = await page.content();
@@ -151,8 +197,25 @@ for (const target of targets) {
             // Sort by priority
             sameDomainLinks.sort((a, b) => getUrlPriority(b) - getUrlPriority(a));
 
+            log.info(
+              `Crawled ${url} — ${links.length} links seen, ${sameDomainLinks.length} same-domain enqueueable (page ${pageCount}/${maxPagesPerDomain})`,
+            );
+
+            if (sameDomainLinks.length === 0 && pageCount === 1) {
+              // Diagnostic: helps users identify SPA / nav-render issues per lead.
+              log.warning(
+                `${url} produced 0 enqueueable internal links — site may be SPA-heavy or DOM-stripped. Lead will have homepage-only data.`,
+              );
+            }
+
             await enqueueLinks({
               urls: sameDomainLinks,
+              // Crawlee's default 'same-hostname' rejects www-vs-bare-domain
+              // pairs, e.g. seed `cnbc.com` filtering out every `www.cnbc.com`
+              // link. We already filtered to the registrable domain via
+              // isSameDomain(); 'same-domain' here lets those subdomain URLs
+              // through.
+              strategy: 'same-domain',
               transformRequestFunction: (req) => {
                 req.userData = { priority: getUrlPriority(req.url) };
                 return req;
@@ -249,6 +312,25 @@ for (const target of targets) {
       discovery: inputDiscovery,
     };
 
+    // Hiring-floor reconciliation: if discovery surfaced a hiring trigger
+    // (the lead came in *because* they were hiring) but the homepage-side
+    // extractor missed open roles, anchor openRoles to ≥1 with department
+    // hints parsed from the discovery signal text. Prevents the awkward
+    // "sourced from a hiring thread but openRoles=0" output.
+    if (
+      enrichedLead.intentSignals.hiringSurge.openRoles === 0 &&
+      inputDiscovery?.signals?.some((s) => s.type === 'hiring')
+    ) {
+      const hiringText = inputDiscovery.signals
+        .filter((s) => s.type === 'hiring')
+        .map((s) => s.text)
+        .join(' ');
+      enrichedLead.intentSignals.hiringSurge = {
+        openRoles: 1,
+        departments: inferDepartmentsFromText(hiringText),
+      };
+    }
+
     // ICP fit score depends on extracted signals being populated.
     enrichedLead.fitScore = scoreFit(enrichedLead, idealCustomerProfile);
 
@@ -312,15 +394,15 @@ for (const target of targets) {
   }
 }
 
-log.info('Lead enrichment completed!');
+log.info(`${mode === 'feed' ? 'Feed' : 'Enriched'} run completed`);
 
-// Charge per URL enriched (Pay-Per-Event)
-// Pricing: $0.0025 per URL enriched = $2.50 per 1,000 URLs
-const urlCount = targets.length;
-if (urlCount > 0) {
+// Pay-per-event: feed mode is 5x cheaper because we skipped the crawler.
+const eventName = mode === 'feed' ? 'lead-feed' : 'lead-enrichment';
+const leadCount = targets.length;
+if (leadCount > 0) {
   try {
-    await Actor.charge({ eventName: 'lead-enrichment', count: urlCount });
-    log.info(`Charged for ${urlCount} URL enrichments`);
+    await Actor.charge({ eventName, count: leadCount });
+    log.info(`Charged ${leadCount} × ${eventName}`);
   } catch (error) {
     // Charging may fail if PPE is not configured - this is OK for free runs
     log.debug(`Pay-per-event charging skipped: ${error instanceof Error ? error.message : 'Not configured'}`);

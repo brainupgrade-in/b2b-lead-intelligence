@@ -4,9 +4,15 @@
   "eventDescriptors": [
     {
       "eventName": "lead-enrichment",
-      "eventDescription": "Charged for each URL enriched with company intelligence data",
+      "eventDescription": "Charged per lead in 'enriched' mode — full crawl + extraction (contacts, tech stack, decision-makers, intent signals, ICP fit).",
       "eventPriceUsd": 0.0025,
-      "eventTitle": "URL Enriched"
+      "eventTitle": "Lead Enriched (deep)"
+    },
+    {
+      "eventName": "lead-feed",
+      "eventDescription": "Charged per lead in 'feed' mode — sourced from public directories / news / hiring threads with no per-site crawl. Thin record (name, URL, discovery signal, ICP relevance) at 5x lower cost.",
+      "eventPriceUsd": 0.0005,
+      "eventTitle": "Lead Sourced (feed)"
     }
   ],
   "computePriceUsdPer1000Compute": null

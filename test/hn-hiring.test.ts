@@ -60,4 +60,46 @@ describe('parseHiringComment', () => {
     expect(parsed).not.toBeNull();
     expect(parsed!.name.length).toBeLessThanOrEqual(80);
   });
+
+  // REGRESSION 1: "Shepherd (Series B) | ONSITE | San Francisco" was extracting
+  // the parenthetical into the name.
+  it('strips trailing parentheticals like "(Series B)" or "(Remote US)" from the name', () => {
+    const shepherd = parseHiringComment(
+      '<p>Shepherd (Series B) | ONSITE | San Francisco<p>Apply: <a href="https://shepherdinsurance.com">link</a>',
+    );
+    expect(shepherd?.name).toBe('Shepherd');
+
+    const prairielearn = parseHiringComment(
+      '<p>PrairieLearn (Remote US) — Full-Stack Software Engineer<p>Apply: <a href="https://prairielearn.com">apply</a>',
+    );
+    expect(prairielearn?.name).toBe('PrairieLearn');
+  });
+
+  // REGRESSION 2: "Amodo Design (https://amodo.com) | Frontend" was returning
+  // "Amodo Design (https" — the `:` in the URL was being treated as a delimiter.
+  it('does not split on colons inside embedded URLs (URL-stripping happens before delimiter split)', () => {
+    const parsed = parseHiringComment(
+      '<p>Amodo Design (https://amododesign.com) | Frontend Engineer<p>Apply: <a href="https://amododesign.com">go</a>',
+    );
+    expect(parsed?.name).toBe('Amodo Design');
+  });
+
+  // REGRESSION 3: Aqora's HN post linked only to quantum.jobs (their ATS).
+  // The parser was happy to use it; we now prefer a homepage-shaped host
+  // when one is present, and only fall back to careers hosts as a last resort.
+  it('prefers a non-careers host when both are present in the comment', () => {
+    const parsed = parseHiringComment(
+      '<p>Acme Robotics<p>Site: <a href="https://acme.example">acme.example</a> Apply: <a href="https://jobs.acme.example/x">careers</a>',
+    );
+    expect(parsed?.url).toBe('https://acme.example');
+  });
+
+  it('falls back to a .jobs / careers URL only when no homepage URL exists', () => {
+    const parsed = parseHiringComment(
+      '<p>Aqora<p>Apply: <a href="https://quantum.jobs">quantum.jobs</a>',
+    );
+    // Better to keep the lead with a careers URL than to drop it entirely.
+    expect(parsed?.name).toBe('Aqora');
+    expect(parsed?.url).toBe('https://quantum.jobs');
+  });
 });

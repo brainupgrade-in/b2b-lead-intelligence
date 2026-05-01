@@ -149,30 +149,72 @@ export function parseHiringComment(htmlText: string): ParsedHiringComment | null
     .replace(/<[^>]+>/g, '')
     .trim();
 
-  // Find first http(s) link
-  const linkMatch = decoded.match(/href=["'](https?:\/\/[^"']+)["']/i)
-    ?? decoded.match(/(https?:\/\/[^\s<>"]+)/i);
-  if (!linkMatch) return null;
-  const rawUrl = linkMatch[1];
-  if (!isCompanyHomepage(rawUrl)) return null;
+  // Pick the best company URL. Some HN posters embed only the careers/ATS
+  // URL; prefer a homepage-shaped one when present.
+  const rawUrl = pickBestCompanyUrl(decoded, text);
+  if (!rawUrl) return null;
 
-  // Company name = first non-empty line, trimmed of common HN prefixes
+  // Company name = first non-empty line, with several layers of cleanup:
+  //   - strip embedded URLs (their colon would otherwise split mid-URL)
+  //   - strip leading [TAG] / [REMOTE] / dash prefixes
+  //   - split on common delimiters (pipe, en/em-dash, colon, bullet)
+  //   - strip trailing parentheticals like "(Series B)" or "(Remote US)"
   const firstLine = text
     .split('\n')
     .map((l) => l.trim())
     .find((l) => l.length > 0) ?? '';
 
-  // Strip leading location/role tags some posters add (e.g. "[REMOTE] Acme Inc")
   const cleaned = firstLine
-    .replace(/^\s*\[[^\]]+\]\s*/g, '')
-    .replace(/^\s*-\s*/g, '')
+    .replace(/https?:\/\/[^\s)|]+/gi, '')      // 1. strip embedded URLs FIRST
+    .replace(/^\s*\[[^\]]+\]\s*/g, '')          // 2. strip leading [TAG]
+    .replace(/^\s*-\s*/g, '')                   // 3. strip leading dash
     .trim();
 
-  const name = (cleaned.split(/[|–—:•]/)[0] ?? cleaned).trim().slice(0, 80);
+  const name = (cleaned.split(/[|–—:•]/)[0] ?? cleaned)
+    .trim()
+    .replace(/\s*\([^)]*\)\s*$/g, '')           // 4. strip trailing parenthetical
+    .trim()
+    .slice(0, 80);
   if (!name) return null;
 
   // One-sentence summary for the discoverySignal text
   const summary = text.replace(/\n+/g, ' ').slice(0, 240);
 
   return { name, url: rawUrl, summary };
+}
+
+/**
+ * Hosts that look like ATS / careers-only domains (the company hires *through*
+ * them but the company's own homepage is elsewhere). Prefer real homepages.
+ */
+function looksLikeCareersHost(url: string): boolean {
+  try {
+    const host = new URL(url).hostname.toLowerCase();
+    if (host.endsWith('.jobs')) return true; // .jobs TLD is reserved for employment
+    if (host.startsWith('jobs.') || host.startsWith('careers.')) return true;
+    if (host.includes('.careers')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+function pickBestCompanyUrl(decodedHtml: string, plainText: string): string | null {
+  // Collect every http(s) URL present, in order, from both <a href> and bare links.
+  const urls: string[] = [];
+  for (const m of decodedHtml.matchAll(/href=["'](https?:\/\/[^"']+)["']/gi)) {
+    urls.push(m[1]);
+  }
+  for (const m of plainText.matchAll(/(https?:\/\/[^\s<>")]+)/gi)) {
+    urls.push(m[1]);
+  }
+
+  // Filter to plausible company homepages (drops aggregator hosts via NON_COMPANY_HOSTS)
+  const candidates = urls.filter((u) => isCompanyHomepage(u));
+  if (candidates.length === 0) return null;
+
+  // Prefer a non-careers/ATS host when available. If only careers/ATS URLs
+  // are present, fall back to the first — better than dropping the lead.
+  const homepageish = candidates.find((u) => !looksLikeCareersHost(u));
+  return homepageish ?? candidates[0];
 }

@@ -20,7 +20,7 @@ export function extractKeyPeople(pages: PageInput[]): KeyPerson[] {
   const candidates: KeyPerson[] = [];
 
   for (const page of pages) {
-    if (!isPeoplePage(page.url)) continue;
+    if (!isPeoplePage(page.url) && !isAboutPage(page.url)) continue;
 
     candidates.push(...extractFromJsonLd(page.html, page.url));
     // Heuristic extractors must not see JSON-LD or inline JSON state — those
@@ -36,6 +36,16 @@ export function extractKeyPeople(pages: PageInput[]): KeyPerson[] {
 
 function isPeoplePage(url: string): boolean {
   return BUSINESS_PAGE_PATTERNS.people.some((p) => p.test(url));
+}
+
+/**
+ * About / company pages frequently embed leadership cards alongside the
+ * narrative — but they also often have non-people content (mission, history).
+ * We probe these with the same heuristics; the existing dedupe filter drops
+ * candidates with no role-keyword in the title, so noise mostly self-cleans.
+ */
+function isAboutPage(url: string): boolean {
+  return BUSINESS_PAGE_PATTERNS.about.some((p) => p.test(url));
 }
 
 /**

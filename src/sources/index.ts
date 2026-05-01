@@ -9,17 +9,35 @@ import { canonicalDomain } from '../utils/canonical-domain.js';
 import { findYcLeads } from './yc.js';
 import { findHnHiringLeads } from './hn-hiring.js';
 import { findCbNewsLeads } from './cb-news.js';
+import { findTechCrunchLeads } from './techcrunch.js';
+import { findPrNewswireLeads } from './prnewswire.js';
+
+export interface SourceStat {
+  source: SourceName;
+  status: 'ok' | 'error';
+  rawCount: number; // before dedup / trigger-filter / cap
+  error?: string;
+}
+
+export interface SourcingResult {
+  leads: SourcedLead[];
+  stats: SourceStat[];
+}
 
 /**
  * Run the configured sourcing modules in parallel, dedupe by canonical domain,
  * relevance-score against the ICP, and cap to maxResults.
+ *
+ * Returns leads alongside per-source stats so callers can surface in the run
+ * log which sources contributed (and which silently returned 0 or errored —
+ * Apify-operational visibility for the user).
  */
 export async function sourceLeads(
   cfg: SourcingConfig,
   icp: IdealCustomerProfile | undefined,
-): Promise<SourcedLead[]> {
+): Promise<SourcingResult> {
   const sources = cfg.sources ?? [];
-  if (sources.length === 0) return [];
+  if (sources.length === 0) return { leads: [], stats: [] };
 
   const cap = cfg.maxResults ?? 25;
   // Per-source budget — slightly over-source so dedupe doesn't starve us.
@@ -35,8 +53,21 @@ export async function sourceLeads(
   const results = await Promise.allSettled(tasks);
 
   const merged: SourcedLead[] = [];
-  for (const r of results) {
-    if (r.status === 'fulfilled') merged.push(...r.value);
+  const stats: SourceStat[] = [];
+  for (let i = 0; i < results.length; i++) {
+    const r = results[i];
+    const source = sources[i];
+    if (r.status === 'fulfilled') {
+      merged.push(...r.value);
+      stats.push({ source, status: 'ok', rawCount: r.value.length });
+    } else {
+      stats.push({
+        source,
+        status: 'error',
+        rawCount: 0,
+        error: r.reason instanceof Error ? r.reason.message : String(r.reason),
+      });
+    }
   }
 
   const triggerFiltered = triggerSet
@@ -47,7 +78,7 @@ export async function sourceLeads(
   const scored = deduped.map((l) => ({ ...l, relevanceScore: scoreRelevance(l, icp, keywords) }));
 
   scored.sort((a, b) => b.relevanceScore - a.relevanceScore);
-  return scored.slice(0, cap);
+  return { leads: scored.slice(0, cap), stats };
 }
 
 interface PerSourceCriteria {
@@ -65,6 +96,10 @@ async function runOne(source: SourceName, c: PerSourceCriteria): Promise<Sourced
       return findHnHiringLeads({ keywords: c.keywords, recencyDays: c.recencyDays, maxResults: c.maxResults });
     case 'cb-news':
       return findCbNewsLeads({ keywords: c.keywords, recencyDays: c.recencyDays, maxResults: c.maxResults });
+    case 'techcrunch':
+      return findTechCrunchLeads({ keywords: c.keywords, recencyDays: c.recencyDays, maxResults: c.maxResults });
+    case 'prnewswire':
+      return findPrNewswireLeads({ keywords: c.keywords, recencyDays: c.recencyDays, maxResults: c.maxResults });
     default:
       return [];
   }
