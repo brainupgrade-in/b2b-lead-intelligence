@@ -188,20 +188,31 @@ for (const target of targets) {
             techStacks.push(tech);
           }
 
-          // Enqueue more links from same domain
+          // Enqueue more links from same domain.
+          //
+          // Cost-control: the SEED page gets a wide expansion (up to 20 links)
+          // because we don't know yet which paths exist. After that, every
+          // subsequent page gets a tight cap (5) AND only enqueues HIGH-priority
+          // paths (/team, /about, /contact, /careers, /pricing). This stops the
+          // pagination explosion on link-rich sites and roughly halves enriched
+          // compute cost, without losing the BD-relevant pages.
           if (pageCount < maxPagesPerDomain) {
+            const isHomepage = pageCount === 1;
+            const minPriority = isHomepage ? 1 : 8;
+            const enqueueLimit = isHomepage ? 20 : 5;
+
             const sameDomainLinks = links
               .filter((link) => isSameDomain(link, baseDomain) && isUsefulPage(link))
-              .slice(0, 20); // Limit links per page
+              .filter((link) => getUrlPriority(link) >= minPriority);
 
-            // Sort by priority
             sameDomainLinks.sort((a, b) => getUrlPriority(b) - getUrlPriority(a));
+            const toEnqueue = sameDomainLinks.slice(0, enqueueLimit);
 
             log.info(
-              `Crawled ${url} — ${links.length} links seen, ${sameDomainLinks.length} same-domain enqueueable (page ${pageCount}/${maxPagesPerDomain})`,
+              `Crawled ${url} — ${links.length} links seen, ${toEnqueue.length} ${isHomepage ? 'enqueueable' : 'high-priority enqueueable'} (page ${pageCount}/${maxPagesPerDomain})`,
             );
 
-            if (sameDomainLinks.length === 0 && pageCount === 1) {
+            if (toEnqueue.length === 0 && isHomepage) {
               // Diagnostic: helps users identify SPA / nav-render issues per lead.
               log.warning(
                 `${url} produced 0 enqueueable internal links — site may be SPA-heavy or DOM-stripped. Lead will have homepage-only data.`,
@@ -209,7 +220,7 @@ for (const target of targets) {
             }
 
             await enqueueLinks({
-              urls: sameDomainLinks,
+              urls: toEnqueue,
               // Crawlee's default 'same-hostname' rejects www-vs-bare-domain
               // pairs, e.g. seed `cnbc.com` filtering out every `www.cnbc.com`
               // link. We already filtered to the registrable domain via
@@ -257,15 +268,19 @@ for (const target of targets) {
     const enrichedLead: EnrichedLead = {
       inputUrl,
       companyUrl: normalizedUrl,
-      companyName: homepageData
-        ? extractCompanyName(homepageData.title, homepageData.html, baseDomain)
-        : null,
+      // Prefer the sourcing-supplied name when present — it's what brought the
+      // lead here, often parsed from a HN/CB-News/TC subject line. Without
+      // this, sites with titles like "Home | Shepherd" (Webflow default) get
+      // companyName="Home" which is non-actionable for sales.
+      companyName: target.sourcedName
+        ?? (homepageData ? extractCompanyName(homepageData.title, homepageData.html, baseDomain) : null),
       description: homepageData
         ? extractDescription(homepageData.html)
         : null,
       contact: (extractEmails || extractPhones)
         ? aggregateContactInfo(
-            pagesData.map((p) => ({ html: p.html, text: p.text, links: p.links, url: p.url }))
+            pagesData.map((p) => ({ html: p.html, text: p.text, links: p.links, url: p.url })),
+            baseDomain,
           )
         : { emails: [], phones: [], contactFormUrl: null },
       socialProfiles: includeSocialProfiles

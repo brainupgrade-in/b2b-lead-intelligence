@@ -106,15 +106,19 @@ export const TECH_PATTERNS = {
     Shopify: [/shopify.*pay/i],
   },
   frameworks: {
-    React: [/__REACT/i, /react-dom/i, /react\.production/i, /_jsx/i],
-    Vue: [/vue\.js/i, /vuejs/i, /__VUE/i, /vue\.runtime/i],
-    Angular: [/angular/i, /ng-version/i],
-    'Next.js': [/_next/i, /__NEXT/i, /next\/dist/i],
-    'Nuxt.js': [/nuxt/i, /__NUXT/i],
-    Svelte: [/svelte/i],
-    jQuery: [/jquery/i],
-    Bootstrap: [/bootstrap/i],
-    Tailwind: [/tailwindcss/i, /tailwind/i],
+    // Tightened — older permissive patterns produced false-positive Vue+Angular
+    // co-detections on plain WordPress sites. Each framework now requires a
+    // distinctive runtime-attribute or bundle-name signature, not a substring
+    // that could appear in CSS class names, blog text, or copyright headers.
+    React: [/__REACT_DEVTOOLS/i, /react-dom\.production/i, /react-dom\.development/i, /react@\d+/i, /\b_jsx\(/],
+    Vue: [/__VUE__/i, /vue\.runtime/i, /vue@\d+/i, /Vue\.config/, /v-app=/],
+    Angular: [/ng-version=/i, /angular\.min\.js/i, /angular\.js"/i, /\[ng-app\]/i, /platform-browser/i],
+    'Next.js': [/__NEXT_DATA__/, /\/_next\/static\//, /next\/dist\//],
+    'Nuxt.js': [/__NUXT__/, /_nuxt\/static\//, /\bnuxt-link\b/i],
+    Svelte: [/svelte-[a-z0-9]{6}/i, /__svelte/i],
+    jQuery: [/jquery[.-]\d/i, /jquery\.min\.js/i, /\$\(document\)\.ready/],
+    Bootstrap: [/bootstrap\.min\.css/i, /bootstrap\.bundle/i, /bootstrap@\d/],
+    Tailwind: [/tailwindcss/i, /tailwind\.config/i],
   },
   hosting: {
     AWS: [/amazonaws\.com/i, /cloudfront\.net/i],

@@ -1,5 +1,6 @@
 import { ContactInfo } from '../types.js';
 import { EMAIL_REGEX, FILTERED_EMAIL_PATTERNS } from '../utils/patterns.js';
+import { canonicalDomain } from '../utils/canonical-domain.js';
 
 /**
  * Extract emails from HTML content
@@ -108,10 +109,17 @@ export function findContactFormUrl(
 }
 
 /**
- * Aggregate contact info from multiple pages
+ * Aggregate contact info from multiple pages.
+ *
+ * `companyDomain` (optional) is the canonical domain of the lead's homepage.
+ * When supplied, emails whose domain doesn't match are dropped — sales reps
+ * have shipped outreach to partner / vendor / fund-administrator emails that
+ * happened to appear on the company's site (e.g., BIT Capital surfacing
+ * `kundenberatung@fondsnet.de`). This filter removes that failure mode.
  */
 export function aggregateContactInfo(
-  pagesData: Array<{ html: string; text: string; links: string[]; url: string }>
+  pagesData: Array<{ html: string; text: string; links: string[]; url: string }>,
+  companyDomain?: string,
 ): ContactInfo {
   const allEmails: string[] = [];
   const allPhones: string[] = [];
@@ -129,11 +137,17 @@ export function aggregateContactInfo(
     }
   }
 
-  // Deduplicate and sort by priority (info@, sales@, contact@ first)
+  // Deduplicate, then drop emails whose domain doesn't match the lead's.
   const uniqueEmails = [...new Set(allEmails)];
+  const targetDomain = companyDomain ? canonicalDomain(companyDomain) : '';
+  const ownEmails = targetDomain
+    ? uniqueEmails.filter((email) => emailDomainMatches(email, targetDomain))
+    : uniqueEmails;
+
+  // Sort by priority (info@, sales@, contact@ first)
   const priorityOrder = ['info@', 'sales@', 'contact@', 'hello@', 'support@'];
 
-  uniqueEmails.sort((a, b) => {
+  ownEmails.sort((a, b) => {
     const aPriority = priorityOrder.findIndex((p) => a.startsWith(p));
     const bPriority = priorityOrder.findIndex((p) => b.startsWith(p));
 
@@ -144,8 +158,21 @@ export function aggregateContactInfo(
   });
 
   return {
-    emails: uniqueEmails.slice(0, 10), // Limit to 10 most relevant
+    emails: ownEmails.slice(0, 10), // Limit to 10 most relevant
     phones: [...new Set(allPhones)].slice(0, 5), // Limit to 5
     contactFormUrl,
   };
+}
+
+/**
+ * Accepts an email iff its domain (or any parent) equals the target
+ * registrable domain. Treats subdomains as a match (eu.acme.com ⇒ acme.com)
+ * but NOT an unrelated tenant on a SaaS provider.
+ */
+function emailDomainMatches(email: string, targetDomain: string): boolean {
+  const at = email.lastIndexOf('@');
+  if (at < 0) return false;
+  const emailDomain = email.slice(at + 1).toLowerCase();
+  if (!emailDomain) return false;
+  return emailDomain === targetDomain || emailDomain.endsWith('.' + targetDomain);
 }
